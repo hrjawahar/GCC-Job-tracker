@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GCC Pipeline Tracker — Chennai Priority</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --card-bg: #ffffff;
+    --text: #1a1d23;
+    --text-muted: #5b6270;
+    --border: #e3e6eb;
+    --accent: #b42318;
+    --accent-bg: #fef3f2;
+    --accent-border: #fda29b;
+    --chip-bg: #eef1f6;
+    --chip-text: #3a4150;
+    --link: #2563eb;
+    --header-bg: #11182a;
+    --header-text: #f2f4f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1117;
+      --card-bg: #181b24;
+      --text: #e7e9ee;
+      --text-muted: #9aa1b0;
+      --border: #2a2e3a;
+      --accent: #ff6961;
+      --accent-bg: #2a1716;
+      --accent-border: #6b2b26;
+      --chip-bg: #232734;
+      --chip-text: #c6cbd8;
+      --link: #7aa7ff;
+      --header-bg: #090b11;
+      --header-text: #f2f4f8;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1117;
+    --card-bg: #181b24;
+    --text: #e7e9ee;
+    --text-muted: #9aa1b0;
+    --border: #2a2e3a;
+    --accent: #ff6961;
+    --accent-bg: #2a1716;
+    --accent-border: #6b2b26;
+    --chip-bg: #232734;
+    --chip-text: #c6cbd8;
+    --link: #7aa7ff;
+    --header-bg: #090b11;
+    --header-text: #f2f4f8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.45;
+  }
+  header {
+    background: var(--header-bg);
+    color: var(--header-text);
+    padding: 28px 16px 22px;
+  }
+  header .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+  header h1 {
+    margin: 0 0 6px;
+    font-size: 1.5rem;
+    font-weight: 650;
+  }
+  header p {
+    margin: 0;
+    color: #c3c8d6;
+    font-size: 0.92rem;
+  }
+  .snapshot-note {
+    margin-top: 10px;
+    font-size: 0.8rem;
+    color: #8a93a8;
+  }
+  main {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 20px 16px 60px;
+  }
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 22px;
+  }
+  .stat {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 12px 14px;
+  }
+  .stat .n { font-size: 1.5rem; font-weight: 700; }
+  .stat .l { font-size: 0.74rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+  .controls select, .controls input {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font-size: 0.85rem;
+  }
+  .controls input { flex: 1; min-width: 160px; }
+  .city-group {
+    margin-bottom: 26px;
+  }
+  .city-group h2 {
+    font-size: 1.05rem;
+    margin: 0 0 10px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .city-group h2 .count {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    font-weight: 500;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+  }
+  .card.flagged {
+    border-color: var(--accent-border);
+    background: var(--accent-bg);
+  }
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .company { font-weight: 650; font-size: 1rem; }
+  .chip {
+    display: inline-block;
+    background: var(--chip-bg);
+    color: var(--chip-text);
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .chip.flag {
+    background: var(--accent);
+    color: #fff;
+  }
+  .meta-line {
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+  .notes {
+    margin-top: 8px;
+    font-size: 0.86rem;
+  }
+  .source-line {
+    margin-top: 8px;
+    font-size: 0.78rem;
+  }
+  .source-line a { color: var(--link); text-decoration: none; }
+  .source-line a:hover { text-decoration: underline; }
+  .no-source { color: var(--text-muted); font-style: italic; }
+  .empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 40px 0;
+    font-size: 0.9rem;
+  }
+  footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.76rem;
+    padding: 10px 16px 30px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1>GCC Pipeline Tracker</h1>
+    <p>Global Capability Centre signals across Chennai (priority), Bengaluru, Hyderabad, Pune &amp; Mumbai/NCR — every sector.</p>
+    <div class="snapshot-note">Static snapshot exported 2 Nov 2026. This file works offline in any browser; it won't receive future updates from the live tracker.</div>
+  </div>
+</header>
+
+<main>
+  <div class="stats" id="stats"></div>
+
+  <div class="controls">
+    <input type="text" id="searchBox" placeholder="Search company, sector, notes…">
+    <select id="cityFilter">
+      <option value="">All cities</option>
+    </select>
+    <select id="typeFilter">
+      <option value="">All signal types</option>
+    </select>
+  </div>
+
+  <div id="results"></div>
+</main>
+
+<footer>GCC Pipeline Tracker · personal research tool · not for redistribution as investment advice</footer>
+
+<script>
+const SIGNALS = [
+  {
+    company: "KLA Corporation", city: "Chennai", sector: "Semiconductors (R&D / Equipment)",
+    signalType: "MoU / Investment Commitment", eventDate: "2026-02-13", flagged: true,
+    notes: "$400M (~₹3,600 crore) MoU with Guidance Tamil Nadu for a global R&D and Innovation Campus focused on semiconductor process control, inspection, and yield management. Up to 4,000 high-skilled jobs expected.",
+    source: "https://www.businesstoday.in/india/story/us-chip-equipment-giant-kla-to-tnvest-rs3600-crore-in-chennai-rd-campus-516128-2026-02-13",
+    sourceLabel: "Business Today, 13 Feb 2026"
+  },
+  {
+    company: "Chubb Group", city: "Chennai", sector: "Insurance / BFSI",
+    signalType: "MoU / Investment Commitment", eventDate: "2026-07-30", flagged: true,
+    notes: "First Tamil Nadu presence for Chubb. GCC plus R&D centre; ~220 jobs expected. Chubb already runs its largest engineering centre globally (Chubb Business Services India) in Hyderabad, Bengaluru, and Bhubaneswar.",
+    source: "https://www.business-standard.com/india-news/chubb-nordex-gcc-rd-centres-chennai-tamil-nadu-investments-126073000468_1.html",
+    sourceLabel: "Business Standard, 30 Jul 2026"
+  },
+  {
+    company: "Nordex Group", city: "Chennai", sector: "Renewable Energy / Engineering",
+    signalType: "MoU / Investment Commitment", eventDate: "2026-07-30", flagged: true,
+    notes: "First Tamil Nadu presence for Nordex (Germany, wind turbines). GCC plus R&D centre; ~1,000 jobs expected.",
+    source: "https://www.business-standard.com/india-news/chubb-nordex-gcc-rd-centres-chennai-tamil-nadu-investments-126073000468_1.html",
+    sourceLabel: "Business Standard, 30 Jul 2026"
+  },
+  {
+    company: "Walgreens", city: "Chennai", sector: "Retail / Healthcare",
+    signalType: "Leadership Hire", eventDate: "2026-08-01", flagged: false,
+    notes: "India HR leader hired for the new Chennai GCC. No public job posting was found for this role — consistent with the pattern of GCC leadership roles being filled through confidential search ahead of any public listing.",
+    source: "", sourceLabel: "Reported directly by tracker owner — month confirmed (Aug 2026), exact date and public listing not found"
+  },
+  {
+    company: "Ernst & Young (EY)", city: "Chennai", sector: "Professional Services / Consulting",
+    signalType: "MoU / Investment Commitment", eventDate: "2026-09-14", flagged: true,
+    notes: "EY (UK-HQ) signed an MoU with Tamil Nadu to set up a ~Rs 1,000 crore GCC in Chennai's newly designated GCC Corridor on Mount Poonamallee Road, creating 2,000+ high-value jobs. Signed alongside Sigma Technology Group's expansion during CM Vijay's London trip.",
+    source: "https://www.dtnext.in/news/tamilnadu/tamil-nadu-signs-two-mous-for-gcc-expansion-rs-1000-cr-projects-to-create-2600-jobs",
+    sourceLabel: "DT Next, 14 Sep 2026"
+  },
+  {
+    company: "Sigma Technology Group", city: "Chennai", sector: "Engineering / Embedded Systems / Industrial Digitalisation",
+    signalType: "MoU / Investment Commitment", eventDate: "2026-09-14", flagged: true,
+    notes: "Sigma Technology Group (Sweden), via its Indian entity Sriya Solutions, signed an MoU to expand its GCC footprint across Chennai and Tiruchy, creating about 600 high-value jobs in embedded systems, digitisation and industrial digitalisation. Part of the same Rs 12,300 crore London-trip signing round as EY's Chennai commitment.",
+    source: "https://www.dtnext.in/news/tamilnadu/tamil-nadu-signs-two-mous-for-gcc-expansion-rs-1000-cr-projects-to-create-2600-jobs",
+    sourceLabel: "DT Next, 14 Sep 2026"
+  },
+  {
+    company: "Starbucks", city: "Chennai", sector: "Retail / Food & Beverage",
+    signalType: "MoU / Investment Commitment", eventDate: "2026-09-21", flagged: true,
+    notes: "Starbucks signed a pact with the Tamil Nadu government to set up its first India GCC in Chennai, creating 800 tech jobs with salaries up to Rs 35 lakh. Second major US retail/F&B brand (after Walgreens) to commit to a Chennai GCC within weeks.",
+    source: "https://www.businesstoday.in/jobs/story/starbucks-picks-chennai-for-first-india-tech-hub-brings-800-tech-jobs-paying-up-to-rs35-lakh-556884-2026-09-21",
+    sourceLabel: "Business Today, 21 Sep 2026"
+  },
+  {
+    company: "Walgreens", city: "Chennai", sector: "Retail / Pharmacy / Healthcare",
+    signalType: "MoU / Investment Commitment", eventDate: "2026-09-17", flagged: true,
+    notes: "TN govt MoU to set up Walgreens' first India GCC in Chennai; company plans to create 250+ jobs in the first year, scaling further. Formal MoU signed as part of CM Vijay's state investment push, following the earlier (Aug 2026) leadership hire already logged for this centre.",
+    source: "https://medicaldialogues.in/amp/news/industry/pharma/us-pharmacy-giant-walgreens-to-set-up-gcc-in-chennai-plans-250-jobs-in-first-year-179526",
+    sourceLabel: "Medical Dialogues, 18 Sep 2026"
+  },
+  {
+    company: "Syneos Health", city: "Hyderabad", sector: "Pharma / Life Sciences (CRO)",
+    signalType: "GCC Launch", eventDate: "2026-09-23", flagged: false,
+    notes: "Syneos Health (US CRO/life-sciences services firm) opened its largest Asia GCC in Hyderabad, a global life sciences and technology centre focused on AI-led healthcare and clinical-trial innovation. No investment or exact headcount figure disclosed publicly.",
+    source: "https://biospectrumindia.com/news/16/28526/syneos-health-launches-largest-asia-centre-in-hyderabad.html",
+    sourceLabel: "BioSpectrum India, 23 Sep 2026"
+  },
+  {
+    company: "AssetMark", city: "Hyderabad", sector: "Wealth Management / Fintech",
+    signalType: "GCC Launch", eventDate: "2026-10-27", flagged: false,
+    notes: "US wealthtech firm AssetMark opened its GCC ('AssetMark Global Wealth') in Hyderabad's Phoenix Hitec City, with capacity for ~500 staff across technology, engineering, operations and product management. Hiring is underway across levels, including global leaders who will manage teams spanning India and the US.",
+    source: "https://telanganatoday.com/assetmark-launches-global-capability-centre-in-hyderabad-announces-hiring",
+    sourceLabel: "Telangana Today, 27 Oct 2026"
+  }
+];
+
+const CITY_ORDER = ["Chennai", "Bengaluru", "Hyderabad", "Pune", "Mumbai/NCR"];
+
+function fmtDate(iso) {
+  try {
+    const d = new Date(iso + "T00:00:00");
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  } catch (e) { return iso; }
+}
+
+function renderStats() {
+  const statsEl = document.getElementById("stats");
+  const total = SIGNALS.length;
+  const flagged = SIGNALS.filter(s => s.flagged).length;
+  const cities = new Set(SIGNALS.map(s => s.city)).size;
+  const sectors = new Set(SIGNALS.map(s => s.sector)).size;
+  statsEl.innerHTML = `
+    <div class="stat"><div class="n">${total}</div><div class="l">Total signals</div></div>
+    <div class="stat"><div class="n">${flagged}</div><div class="l">Chennai signals</div></div>
+    <div class="stat"><div class="n">${cities}</div><div class="l">Cities covered</div></div>
+    <div class="stat"><div class="n">${sectors}</div><div class="l">Sectors</div></div>
+  `;
+}
+
+function populateFilters() {
+  const cityFilter = document.getElementById("cityFilter");
+  const typeFilter = document.getElementById("typeFilter");
+  const cities = [...new Set(SIGNALS.map(s => s.city))].sort(
+    (a, b) => CITY_ORDER.indexOf(a) - CITY_ORDER.indexOf(b)
+  );
+  cities.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c; opt.textContent = c;
+    cityFilter.appendChild(opt);
+  });
+  const types = [...new Set(SIGNALS.map(s => s.signalType))].sort();
+  types.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t; opt.textContent = t;
+    typeFilter.appendChild(opt);
+  });
+}
+
+function cardHtml(s) {
+  const sourceHtml = s.source
+    ? `<a href="${s.source}" target="_blank" rel="noopener">${s.sourceLabel}</a>`
+    : `<span class="no-source">${s.sourceLabel}</span>`;
+  return `
+    <div class="card ${s.flagged ? "flagged" : ""}">
+      <div class="card-top">
+        <span class="company">${s.company}</span>
+        <span>
+          <span class="chip">${s.signalType}</span>
+          ${s.flagged ? '<span class="chip flag">Chennai</span>' : ""}
+        </span>
+      </div>
+      <div class="meta-line">${s.city} · ${s.sector} · ${fmtDate(s.eventDate)}</div>
+      <div class="notes">${s.notes}</div>
+      <div class="source-line">${sourceHtml}</div>
+    </div>
+  `;
+}
+
+function render() {
+  const q = document.getElementById("searchBox").value.trim().toLowerCase();
+  const cityVal = document.getElementById("cityFilter").value;
+  const typeVal = document.getElementById("typeFilter").value;
+
+  let filtered = SIGNALS.filter(s => {
+    if (cityVal && s.city !== cityVal) return false;
+    if (typeVal && s.signalType !== typeVal) return false;
+    if (q) {
+      const hay = (s.company + " " + s.sector + " " + s.notes + " " + s.signalType).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  filtered.sort((a, b) => new Date(b.eventDate) - new Date(a.eventDate));
+
+  const resultsEl = document.getElementById("results");
+  if (filtered.length === 0) {
+    resultsEl.innerHTML = `<div class="empty-state">No signals match your filters.</div>`;
+    return;
+  }
+
+  const groups = {};
+  filtered.forEach(s => {
+    groups[s.city] = groups[s.city] || [];
+    groups[s.city].push(s);
+  });
+
+  const orderedCities = Object.keys(groups).sort(
+    (a, b) => CITY_ORDER.indexOf(a) - CITY_ORDER.indexOf(b)
+  );
+
+  resultsEl.innerHTML = orderedCities.map(city => `
+    <div class="city-group">
+      <h2>${city} <span class="count">${groups[city].length} signal${groups[city].length > 1 ? "s" : ""}</span></h2>
+      ${groups[city].map(cardHtml).join("")}
+    </div>
+  `).join("");
+}
+
+renderStats();
+populateFilters();
+render();
+
+document.getElementById("searchBox").addEventListener("input", render);
+document.getElementById("cityFilter").addEventListener("change", render);
+document.getElementById("typeFilter").addEventListener("change", render);
+</script>
+
+</body>
+</html>
